@@ -119,7 +119,7 @@ NEXT_PUBLIC_APP_NAME=HealthWise
 #### MongoDB URI Formats:
 
 - **Local:** `mongodb://localhost:27017/HealthWise`
-- **Atlas:** `mongodb+srv://username:password@cluster.mongodb.net/HealthWise`
+- **Atlas:** `mongodb+srv://<username>:<password>@<cluster>.mongodb.net/HealthWise`
 - **Docker:** `mongodb://localhost:27017/HealthWise` (same as local)
 
 ---
@@ -558,18 +558,6 @@ This is an MVP project. Contributions are welcome! Please follow the existing co
 4. Use the `generateStructured()` pattern for AI features
 5. Follow the existing API response structure
 6. Test with and without `GEMINI_API_KEY` configured
-
----
-
-## 📄 License
-
-[Add your license here]
-
----
-
-## 👤 Author
-
-[Add your information here]
 
 ---
 
