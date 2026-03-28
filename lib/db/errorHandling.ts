@@ -1,21 +1,6 @@
-import mongoose from "mongoose";
-
-export function isMongoError(error: unknown): error is mongoose.Error {
-  return error instanceof mongoose.Error;
-}
-
-export function getMongoErrorMessage(error: unknown): string {
-  if (error instanceof mongoose.Error.ValidationError) {
-    const messages = Object.values(error.errors).map((err) => err.message);
-    return `Validation error: ${messages.join(", ")}`;
-  }
-
-  if (error instanceof mongoose.Error.CastError) {
-    return `Invalid ${error.path}: ${error.value}`;
-  }
-
-  if (isMongoError(error)) {
-    return error.message;
+export function getMongoErrorMessage(error: any): string {
+  if (error?.code && typeof error.code === 'string' && error.code.startsWith('P')) {
+    return `Database error: ${error.code}`;
   }
 
   if (error instanceof Error) {
@@ -25,11 +10,12 @@ export function getMongoErrorMessage(error: unknown): string {
   return "Unknown database error";
 }
 
-export function isConnectionError(error: unknown): boolean {
+export function isConnectionError(error: any): boolean {
   return (
-    error instanceof Error &&
+    error?.code === 'P1001' ||
+    (error instanceof Error &&
     (error.message.includes("ECONNREFUSED") ||
       error.message.includes("connection") ||
-      error.message.includes("timeout"))
+      error.message.includes("timeout")))
   );
 }

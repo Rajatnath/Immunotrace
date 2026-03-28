@@ -1,79 +1,148 @@
-import { connectToDatabase } from "@/lib/db/mongodb";
-import { Prescription } from "@/lib/db/models/Prescription";
+import prisma from "@/lib/db/prisma";
 import type { PrescriptionEntry } from "@/lib/types/domain";
+import { buildPrescriptionSemanticText, generateContentEmbedding } from "@/lib/ai/embeddings";
 
 export type StoredPrescription = PrescriptionEntry & { id: string };
 
 /**
  * List all prescriptions sorted by recordedDate (newest first).
- * Falls back to empty array if MongoDB is not connected.
+ * Includes the symptom and medicine relations.
  */
-export async function listPrescriptions(): Promise<StoredPrescription[]> {
-  const db = await connectToDatabase();
-  if (!db) {
-    console.warn("MongoDB not connected. Returning empty prescription list.");
-    return [];
-  }
-
+export async function listPrescriptions(userId: string): Promise<StoredPrescription[]> {
   try {
-    const docs = await Prescription.find().sort({ recordedDate: -1 }).lean().exec();
+    const docs = await prisma.prescription.findMany({
+      where: { userId },
+      orderBy: { recordedDate: "desc" },
+      include: {
+        symptoms: true,
+        medicines: true,
+      },
+    });
 
-    return docs.map((doc) => ({
-      id: doc._id.toString(),
+    return docs.map((doc: any) => ({
+      id: doc.id,
       recordedDate: doc.recordedDate.toISOString(),
       illnessName: doc.illnessName,
-      symptoms: doc.symptoms,
+      symptoms: doc.symptoms.map((s: any) => ({
+        name: s.name,
+        severity: s.severity as "mild"| "moderate" | "severe",
+        durationDays: s.durationDays ?? undefined,
+      })),
       diagnosis: doc.diagnosis,
-      medicines: doc.medicines,
-      outcome: doc.outcome,
-      notes: doc.notes,
-      source: doc.source,
+      medicines: doc.medicines.map((m: any) => ({
+        name: m.name,
+        dosage: m.dosage,
+        frequency: m.frequency,
+        durationDays: m.durationDays,
+      })),
+      outcome: doc.outcome as "improved" | "same" | "worse" | "unknown",
+      notes: doc.notes ?? undefined,
+      source: doc.source as "manual" | "ocr",
+      imageData: doc.imageData ? Buffer.from(doc.imageData).toString("base64") : undefined,
     }));
   } catch (error) {
-    console.error("Error listing prescriptions from MongoDB:", error);
+    console.error("Error listing prescriptions from Postgres:", error);
     return [];
   }
 }
 
 /**
- * Add a new prescription to MongoDB.
- * Falls back to in-memory representation if MongoDB is not connected.
+ * Add a new prescription to Postgres.
  */
-export async function addPrescription(entry: PrescriptionEntry): Promise<StoredPrescription> {
-  const db = await connectToDatabase();
-  if (!db) {
-    console.warn("MongoDB not connected. Returning mock prescription.");
-    return {
-      ...entry,
-      id: `rx-mock-${Date.now()}`,
-    };
-  }
-
+export async function addPrescription(entry: PrescriptionEntry, userId: string): Promise<StoredPrescription> {
   try {
-    const doc = await Prescription.create({
-      recordedDate: new Date(entry.recordedDate),
-      illnessName: entry.illnessName,
-      symptoms: entry.symptoms,
-      diagnosis: entry.diagnosis,
-      medicines: entry.medicines,
-      outcome: entry.outcome,
-      notes: entry.notes,
-      source: entry.source,
+    // 1. Defensively upsert the User to resolve Foreign Key constraint (P2003) for OAuth users
+    await prisma.user.upsert({
+      where: { userId },
+      update: {},
+      create: { 
+        userId, 
+        age: 30,
+        city: "Seattle",
+        allergies: [],
+        sleepHours: 7.5,
+        dietType: "vegetarian",
+        activityLevel: "moderate"
+      }
     });
 
+    // Handle Image Data: Convert Base64 from frontend to Buffer for Prisma (Bytes)
+    const imageBuffer = entry.imageData 
+      ? Buffer.from(entry.imageData.split(",")[1] || entry.imageData, "base64") 
+      : null;
+
+    // 2. Insert Prescription safely
+    const doc = await prisma.prescription.create({
+      data: {
+        userId,
+        recordedDate: new Date(entry.recordedDate),
+        illnessName: entry.illnessName,
+        diagnosis: entry.diagnosis,
+        outcome: entry.outcome,
+        notes: entry.notes,
+        source: entry.source,
+        imageData: imageBuffer,
+        symptoms: {
+          create: entry.symptoms.map(s => ({
+            name: s.name,
+            severity: s.severity,
+            durationDays: s.durationDays,
+          }))
+        },
+        medicines: {
+          create: entry.medicines.map(m => ({
+            name: m.name,
+            dosage: m.dosage,
+            frequency: m.frequency,
+            durationDays: m.durationDays,
+          }))
+        }
+      },
+      include: {
+        symptoms: true,
+        medicines: true
+      }
+    });
+
+    // RAG INJECTION: Generate and save the semantic vector asynchronously
+    try {
+      const semanticText = buildPrescriptionSemanticText(entry, doc.recordedDate.toISOString());
+      const vector = await generateContentEmbedding(semanticText);
+      
+      const vectorStr = `[${vector.join(",")}]`;
+
+      await prisma.$executeRaw`
+        INSERT INTO "PrescriptionEmbedding" ("id", "prescriptionId", "content", "embedding")
+        VALUES (gen_random_uuid(), ${doc.id}, ${semanticText}, ${vectorStr}::vector)
+      `;
+      console.log(`Successfully generated and saved embedding for prescription: ${doc.id}`);
+    } catch (embedError) {
+      console.error("Non-fatal: Failed to generate/save embedding for prescription:", embedError);
+    }
+
     return {
-      id: doc._id.toString(),
+      id: doc.id,
       recordedDate: doc.recordedDate.toISOString(),
       illnessName: doc.illnessName,
-      symptoms: doc.symptoms,
+      symptoms: doc.symptoms.map((s: any) => ({
+        name: s.name,
+        severity: s.severity as "mild"| "moderate" | "severe",
+        durationDays: s.durationDays ?? undefined,
+      })),
       diagnosis: doc.diagnosis,
-      medicines: doc.medicines,
-      outcome: doc.outcome,
-      notes: doc.notes,
-      source: doc.source,
+      medicines: doc.medicines.map((m: any) => ({
+        name: m.name,
+        dosage: m.dosage,
+        frequency: m.frequency,
+        durationDays: m.durationDays,
+      })),
+      outcome: doc.outcome as "improved" | "same" | "worse" | "unknown",
+      notes: doc.notes ?? undefined,
+      source: doc.source as "manual" | "ocr",
+      imageData: doc.imageData ? Buffer.from(doc.imageData).toString("base64") : undefined,
     };
   } catch (error) {
-    console.error("Error adding prescription to MongoDB:", error);
+    console.error("Error adding prescription to Postgres:", error);
     throw new Error("Failed to save prescription to database");
   }
 }
@@ -82,27 +151,37 @@ export async function addPrescription(entry: PrescriptionEntry): Promise<StoredP
  * Get a prescription by ID.
  */
 export async function getPrescriptionById(id: string): Promise<StoredPrescription | null> {
-  const db = await connectToDatabase();
-  if (!db) {
-    return null;
-  }
-
   try {
-    const doc = await Prescription.findById(id).lean().exec();
-    if (!doc) {
-      return null;
-    }
+    const doc = await prisma.prescription.findUnique({
+      where: { id },
+      include: {
+        symptoms: true,
+        medicines: true,
+      },
+    });
+    
+    if (!doc) return null;
 
     return {
-      id: doc._id.toString(),
+      id: doc.id,
       recordedDate: doc.recordedDate.toISOString(),
       illnessName: doc.illnessName,
-      symptoms: doc.symptoms,
+      symptoms: doc.symptoms.map((s: any) => ({
+        name: s.name,
+        severity: s.severity as "mild"| "moderate" | "severe",
+        durationDays: s.durationDays ?? undefined,
+      })),
       diagnosis: doc.diagnosis,
-      medicines: doc.medicines,
-      outcome: doc.outcome,
-      notes: doc.notes,
-      source: doc.source,
+      medicines: doc.medicines.map((m: any) => ({
+        name: m.name,
+        dosage: m.dosage,
+        frequency: m.frequency,
+        durationDays: m.durationDays,
+      })),
+      outcome: doc.outcome as "improved" | "same" | "worse" | "unknown",
+      notes: doc.notes ?? undefined,
+      source: doc.source as "manual" | "ocr",
+      imageData: doc.imageData ? Buffer.from(doc.imageData).toString("base64") : undefined,
     };
   } catch (error) {
     console.error("Error getting prescription by ID:", error);
@@ -114,16 +193,38 @@ export async function getPrescriptionById(id: string): Promise<StoredPrescriptio
  * Delete a prescription by ID.
  */
 export async function deletePrescription(id: string): Promise<boolean> {
-  const db = await connectToDatabase();
-  if (!db) {
-    return false;
-  }
-
   try {
-    const result = await Prescription.findByIdAndDelete(id).exec();
-    return result !== null;
+    await prisma.prescription.delete({
+      where: { id }
+    });
+    return true;
   } catch (error) {
     console.error("Error deleting prescription:", error);
     return false;
+  }
+}
+
+
+/**
+ * Retrieve the most semantically relevant prescriptions using pgvector Cosine Distance.
+ */
+export async function findSimilarPrescriptions(queryVector: number[], userId: string, topK: number = 3) {
+  try {
+    const vectorStr = `[${queryVector.join(",")}]`;
+
+    // <=> is the Cosine Distance operator in pgvector
+    const matches = await prisma.$queryRaw<Array<{ prescriptionId: string, content: string, similarity: number }>>`
+      SELECT e."prescriptionId", e."content", 1 - (e.embedding <=> ${vectorStr}::vector) as similarity
+      FROM "PrescriptionEmbedding" e
+      JOIN "Prescription" p ON e."prescriptionId" = p.id
+      WHERE p."userId" = ${userId}
+      ORDER BY e.embedding <=> ${vectorStr}::vector
+      LIMIT ${topK}
+    `;
+
+    return matches;
+  } catch (error) {
+    console.error("Error performing RAG similarity search in Postgres:", error);
+    return [];
   }
 }

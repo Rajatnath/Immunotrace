@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { runGeminiOcrFromImage } from "@/lib/ai/healthwiseAI";
+import { runPixtralOcrFromImage } from "@/lib/ai/healthwiseAI";
+
+export const runtime = "nodejs";
+export const maxDuration = 60; // Extend to 60s for Pixtral-12B
 
 export async function POST(request: Request) {
   const form = await request.formData().catch(() => null);
@@ -34,7 +37,7 @@ export async function POST(request: Request) {
 
   const bytes = await file.arrayBuffer();
   const base64 = Buffer.from(bytes).toString("base64");
-  const extracted = await runGeminiOcrFromImage({
+  const extracted = await runPixtralOcrFromImage({
     mimeType: file.type || "image/jpeg",
     base64,
   });
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
     success: true,
     data: {
       extracted,
-      note: "Gemini OCR structured extraction.",
+      note: "Pixtral-12B OCR structured extraction.",
     },
   });
 }

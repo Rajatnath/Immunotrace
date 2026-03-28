@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
-import { addPrescription, listPrescriptions } from "@/lib/db/prescriptionService";
+import { addPrescription, listPrescriptions, deletePrescription } from "@/lib/db/prescriptionService";
 import { prescriptionEntrySchema } from "@/lib/types/domain";
 import { getMongoErrorMessage } from "@/lib/db/errorHandling";
+import { auth } from "@/lib/auth";
+
+export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const prescriptions = await listPrescriptions();
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const prescriptions = await listPrescriptions(session.user.id);
     return NextResponse.json({
       success: true,
       data: prescriptions,
@@ -26,6 +34,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = prescriptionEntrySchema.safeParse(body);
 
@@ -44,7 +57,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const created = await addPrescription(parsed.data);
+    const created = await addPrescription(parsed.data, session.user.id);
 
     return NextResponse.json({
       success: true,
@@ -62,5 +75,25 @@ export async function POST(request: Request) {
       },
       { status: 500 }
     );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) return NextResponse.json({ success: false, error: "Missing record ID" }, { status: 400 });
+
+    const deleted = await deletePrescription(id);
+    if (!deleted) return NextResponse.json({ success: false, error: "Record not found or already deleted" }, { status: 404 });
+
+    return NextResponse.json({ success: true, data: { id } });
+  } catch (error) {
+    console.error("Error deleting prescription:", error);
+    return NextResponse.json({ success: false, error: { message: "Failed to delete" } }, { status: 500 });
   }
 }

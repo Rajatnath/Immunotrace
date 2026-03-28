@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { runGeminiHealthReport } from "@/lib/ai/healthwiseAI";
+import { auth } from "@/lib/auth";
+
+export const runtime = "nodejs";
 
 export async function POST() {
-  const report = await runGeminiHealthReport();
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  const report = await runGeminiHealthReport(session.user.id);
 
   return NextResponse.json({
     success: true,

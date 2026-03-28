@@ -1,0 +1,76 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("POSTGRES_PRISMA_URL")
+  directUrl  = env("POSTGRES_URL_NON_POOLING")
+  extensions = [vector]
+}
+
+model User {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  age           Int
+  city          String
+  allergies     String[]
+  sleepHours    Float
+  dietType      String
+  activityLevel String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  prescriptions Prescription[]
+}
+
+model Prescription {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  
+  recordedDate DateTime
+  illnessName  String
+  diagnosis    String
+  outcome      String     @default("unknown")
+  notes        String?
+  source       String     @default("manual")
+  imageData    Bytes?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  symptoms     Symptom[]
+  medicines    Medicine[]
+  embeddings   PrescriptionEmbedding[]
+}
+
+model Symptom {
+  id             String       @id @default(uuid())
+  name           String
+  severity       String       @default("mild")
+  durationDays   Int?
+  
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+}
+
+model Medicine {
+  id             String       @id @default(uuid())
+  name           String
+  dosage         String
+  frequency      String
+  durationDays   Int
+  
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+}
+
+model PrescriptionEmbedding {
+  id             String       @id @default(uuid())
+  content        String       @db.Text
+  embedding      Unsupported("vector(1024)")
+  
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+}

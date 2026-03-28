@@ -23,12 +23,13 @@ export const prescriptionEntrySchema = z.object({
   outcome: z.enum(["improved", "same", "worse", "unknown"]).default("unknown"),
   notes: z.string().max(500).optional(),
   source: z.enum(["manual", "ocr"]).default("manual"),
+  imageData: z.string().optional(),
 });
 
 export const userProfileSchema = z.object({
-  userId: z.string(),
+  userId: z.string().min(1),
   age: z.number().int().min(1).max(120),
-  city: z.string().min(2),
+  city: z.string().min(1),
   allergies: z.array(z.string()).default([]),
   sleepHours: z.number().min(0).max(24),
   dietType: z.enum(["vegetarian", "eggetarian", "non-vegetarian", "vegan"]),
@@ -42,6 +43,7 @@ export const healthReportSchema = z.object({
   likelyTriggers: z.array(z.string()),
   medicineResponse: z.array(z.string()),
   preventionActions: z.array(z.string()),
+  ayushPerspective: z.string(),
   disclaimer: z.string(),
 });
 
@@ -58,6 +60,7 @@ export const dietPlanSchema = z.object({
 export const chatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string().min(1),
+  ayushPerspective: z.string().optional(),
   createdAt: z.string().datetime(),
 });
 

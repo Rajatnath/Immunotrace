@@ -1,23 +1,44 @@
 import { MainShell } from "@/components/layout/MainShell";
+import { DashboardClient } from "@/app/dashboard/DashboardClient";
+import { DashboardSkeleton } from "@/app/dashboard/DashboardSkeleton";
+import { listPrescriptions } from "@/lib/db/prescriptionService";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import prisma from "@/lib/db/prisma";
+import { Suspense } from "react";
 
-const cards = [
-  { label: "Recurring Illnesses (6m)", value: "3", note: "Cold and sore throat most common" },
-  { label: "Last Recovery Time", value: "4 days", note: "Improved with rest + hydration" },
-  { label: "Top Trigger", value: "Season change", note: "March and July episodes" },
-];
+export const dynamic = "force-dynamic";
 
-export default function DashboardPage() {
+async function DashboardContent({ userId, user }: { userId: string, user: any }) {
+  const prescriptions = await listPrescriptions(userId);
+  
+  const score = prescriptions.length === 0 ? 0 : Math.min(98, 85 + prescriptions.length);
+  const grade = prescriptions.length === 0 ? "—" : (score > 90 ? "A" : score > 85 ? "A-" : "B+");
+
+  return (
+    <>
+      {/* Note: In a real streaming scenario, we'd want the Shell to show progress, 
+          but for "millisecond" entry, we let the inner client handle local hydration */}
+      <DashboardClient 
+        initialPrescriptions={prescriptions} 
+        user={user} 
+      />
+    </>
+  );
+}
+
+export default async function DashboardPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/");
+
+  // Fetch only user metadata in parallel for the shell
+  const user = await prisma.user.findUnique({ where: { userId: session.user.id } });
+
   return (
     <MainShell title="Personal Health Dashboard">
-      <section className="grid gap-4 md:grid-cols-3">
-        {cards.map((card) => (
-          <article key={card.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-600">{card.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">{card.value}</p>
-            <p className="mt-2 text-sm text-slate-500">{card.note}</p>
-          </article>
-        ))}
-      </section>
+      <Suspense fallback={<DashboardSkeleton />}>
+        <DashboardContent userId={session.user.id} user={user} />
+      </Suspense>
     </MainShell>
   );
 }
