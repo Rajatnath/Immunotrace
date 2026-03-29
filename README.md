@@ -84,19 +84,43 @@ ImmunoTrace is a specialized health intelligence platform designed to store, ret
 
 ### **Environment Variables**
 
+> [!TIP]
+> **Configuration**: Create a `.env.local` file in the root directory and populate it with the following keys. Refer to the respective provider dashboards (Google Cloud, Mistral AI, Supabase) to obtain these values.
+
 ```env
-# Database
-POSTGRES_PRISMA_URL="postgresql://..." # Transaction pooling (port 6543)
-POSTGRES_URL_NON_POOLING="postgresql://..." # Direct connection (port 5432)
-
-# AI (Mistral AI)
-MISTRAL_API_KEY="your_api_key_here"
-
-# Authentication
-AUTH_SECRET="your_secret_here"
+# --- NEXTAUTH (OAUTH) ---
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your_nextauth_secret_here"
+# Required for ngrok/tunnels
 AUTH_TRUST_HOST=true
-GOOGLE_CLIENT_ID="your_google_id"
-GOOGLE_CLIENT_SECRET="your_google_secret"
+
+# --- GOOGLE OAUTH ---
+GOOGLE_CLIENT_ID="your_google_client_id_here"
+GOOGLE_CLIENT_SECRET="your_google_client_secret_here"
+
+# --- AI INFRASTRUCTURE ---
+# Mistral AI (Reasoning & Vision)
+MISTRAL_API_KEY="your_mistral_api_key_here"
+# Google Gemini (Analytics)
+GEMINI_API_KEY="your_gemini_api_key_here"
+
+# --- DATABASE (SUPABASE) ---
+POSTGRES_DATABASE="postgres"
+POSTGRES_HOST="your_supabase_host_here"
+POSTGRES_PASSWORD="your_database_password_here"
+POSTGRES_USER="postgres"
+
+# Prisma Pooling (Transaction - Port 6543)
+POSTGRES_URL="postgresql://postgres.[REF]:[PW]@aws-1-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+POSTGRES_PRISMA_URL="postgresql://postgres.[REF]:[PW]@aws-1-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Direct Connection (Migrations/Maintenance - Port 5432)
+POSTGRES_URL_NON_POOLING="postgresql://postgres.[REF]:[PW]@aws-1-us-east-1.pooler.supabase.com:5432/postgres"
+
+# --- SUPABASE INFRASTRUCTURE ---
+SUPABASE_URL="https://your_project_ref.supabase.co"
+SUPABASE_ANON_KEY="your_supabase_anon_key_here"
+SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key_here"
 ```
 
 ---
