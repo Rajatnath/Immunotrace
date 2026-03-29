@@ -18,7 +18,7 @@ BACKEND / WEB
 
 ## File Structure Changes
 ```diff
-  HealthWise/
+   ImmunoTrace/
 - ├── lib/db/mongodb.ts
 - ├── lib/db/models/User.ts
 - ├── lib/db/models/Prescription.ts

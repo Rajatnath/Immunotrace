@@ -7,7 +7,7 @@ import { listPrescriptions } from "@/lib/db/prescriptionService";
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
-  { href: "/chat", icon: Sparkles, label: "Ask HealthWise" },
+  { href: "/chat", icon: Sparkles, label: "Ask ImmunoTrace" },
   { href: "/report", icon: Activity, label: "Activity Logs" },
   { href: "/diet", icon: Apple, label: "Ayush Diet" },
   { href: "/calendar", icon: Calendar, label: "Schedule" },

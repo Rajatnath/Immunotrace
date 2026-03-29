@@ -1,8 +1,8 @@
-# Copilot Instructions for HealthWise
+# Copilot Instructions for ImmunoTrace
 
 ## Project Overview
 
-HealthWise is a Next.js web app (MVP) that helps users track recurring illnesses, store prescription history, and receive safe AI-assisted health insights powered by Google Gemini. Currently single-user with in-memory persistence (data resets on server restart).
+ImmunoTrace is a Next.js 16 web app that helps users track recurring illnesses, store prescription history, and receive safe AI-assisted health insights powered by Google Gemini. Uses Vercel Postgres with Prisma ORM for persistence and NextAuth v5 for authentication.
 
 ## Build, Test, and Lint
 
@@ -16,22 +16,33 @@ npm run build
 # Linting
 npm run lint
 
-# Seed MongoDB with initial data
+# Seed database with initial data
 npm run db:seed
+
+# Database operations
+npx prisma generate       # Generate Prisma Client
+npx prisma db push        # Push schema to database
+npx prisma studio         # Open database GUI
 ```
 
 No tests are currently implemented.
 
 ## Environment Setup
 
-Required environment variables in `.env.local` (see `.env.example`):
+Required environment variables in `.env.local`:
 
-- `GEMINI_API_KEY` - Google Gemini API key for AI features
+- `POSTGRES_PRISMA_URL` - Postgres connection (transaction pooling, port 6543)
+- `POSTGRES_URL_NON_POOLING` - Postgres direct connection (port 5432)
+- `MISTRAL_API_KEY` - Mistral AI API key (Ministral-3B, Pixtral-12B, Mistral-Embed)
+- `GEMINI_API_KEY` - Google Gemini API key for AI features (alternative to Mistral)
 - `GEMINI_MODEL` - Defaults to `gemini-2.0-flash`
-- `MONGODB_URI` - MongoDB connection (scaffold only, not yet functional)
+- `AUTH_SECRET` - NextAuth secret for session signing
+- `AUTH_TRUST_HOST` - Set to `true` for NextAuth v5
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
 - `NEXT_PUBLIC_APP_NAME` - App display name
 
-**Important:** All AI endpoints gracefully fallback to deterministic responses when `GEMINI_API_KEY` is missing or invalid. MongoDB operations fall back to mock mode when `MONGODB_URI` is not configured.
+**Important:** All AI endpoints gracefully fallback to deterministic responses when API keys are missing or invalid.
 
 ## Architecture
 
@@ -49,30 +60,37 @@ Required environment variables in `.env.local` (see `.env.example`):
 
 ```
 lib/
-  ai/            - Gemini integration and structured generation
-  data/          - Legacy in-memory data stores (deprecated)
+  ai/            - Gemini/Mistral integration and structured generation
+    embeddings.ts       - Vector embeddings (Mistral-Embed)
+    geminiClient.ts     - Gemini client setup
+    immunoTraceAI.ts    - Core AI generation functions
+    promptContracts.ts  - System prompt definitions
   db/
-    models/      - Mongoose schemas (Prescription, User)
-    mongodb.ts   - MongoDB connection with caching
+    prisma.ts          - Prisma client singleton
     prescriptionService.ts - Database CRUD operations
-    errorHandling.ts - MongoDB error utilities
+    errorHandling.ts   - Error utilities
   safety/        - Medical guardrails and disclaimers
   types/         - Zod schemas and TypeScript types
-  demoUser.ts    - Hardcoded demo user profile
+  auth.ts        - NextAuth v5 configuration
+  demoUser.ts    - Demo user profile
 app/
-  (route)/       - App Router pages
+  (routes)/      - App Router pages
   api/           - API route handlers
+    auth/        - NextAuth v5 handlers
 components/
-  layout/        - Layout components (MainShell)
+  layout/        - Layout components
+  providers/     - React context providers
+prisma/
+  schema.prisma  - Database schema with pgvector
 scripts/
-  seed.ts        - MongoDB seed script
+  seed.ts        - Database seed script
 ```
 
 ### Key Patterns
 
 #### Structured AI Generation
 
-All AI responses use a unified pattern in `lib/ai/healthwiseAI.ts`:
+All AI responses use a unified pattern in `lib/ai/immunoTraceAI.ts`:
 
 ```typescript
 generateStructured({
@@ -124,33 +142,35 @@ if (!parsed.success) {
 - Give specific dosage instructions (sanitized to "[dosage removed]")
 - Skip the disclaimer in any AI-generated health response
 
-#### MongoDB Persistence
+#### Postgres/Prisma Persistence
 
 Database operations in `lib/db/prescriptionService.ts`:
 
-- `listPrescriptions()` - returns prescriptions sorted by recordedDate (newest first)
-- `addPrescription(entry)` - creates new prescription with MongoDB _id
-- `getPrescriptionById(id)` - fetch single prescription
-- `deletePrescription(id)` - remove prescription by ID
+- `listPrescriptions(userId)` - returns prescriptions sorted by recordedDate (newest first)
+- `addPrescription(userId, entry)` - creates new prescription with vector embeddings
+- `getPrescriptionById(userId, id)` - fetch single prescription
+- `deletePrescription(userId, id)` - remove prescription by ID
+- `findSimilarPrescriptions(userId, query, limit)` - semantic search using pgvector
 
-**Graceful degradation:**
-- If `MONGODB_URI` is not set, API routes return mock data or empty arrays
-- Connection uses global caching to avoid duplicate connections in serverless
-- Run `npm run db:seed` to populate initial demo prescription
+**Prisma client:**
+- `lib/db/prisma.ts` - Singleton pattern with global caching for serverless
+- Models: `User`, `Prescription`, `Symptom`, `Medicine`, `PrescriptionEmbedding`
+- Schema includes `pgvector` extension for 1024-dimensional embeddings (Mistral-Embed)
 
-**Mongoose models:**
-- `lib/db/models/Prescription.ts` - Maps to Zod `prescriptionEntrySchema`
-- `lib/db/models/User.ts` - Maps to Zod `userProfileSchema` (future auth)
-- Uses `models.X || model()` pattern to prevent hot-reload recompilation
+**Important patterns:**
+- All database operations require `userId` for multi-tenant isolation
+- Vector embeddings are automatically generated and stored for semantic search
+- Use `include` in Prisma queries to fetch related `symptoms` and `medicines`
 
-#### In-Memory Data Store (Deprecated)
+#### Authentication
 
-`lib/data/prescriptionsStore.ts` is kept for reference but no longer used. All persistence now goes through MongoDB service layer.
+NextAuth v5 configuration in `lib/auth.ts`:
 
-#### Demo User Profile
+- **Providers:** Credentials (demo mode), Google OAuth
+- **Session strategy:** JWT
+- **User lookup:** Prisma queries against `User` table by `userId`
 
-`lib/demoUser.ts` exports hardcoded profile:
-
+Demo user profile (`lib/demoUser.ts`):
 ```typescript
 {
   userId: "demo-user-1",
@@ -163,7 +183,7 @@ Database operations in `lib/db/prescriptionService.ts`:
 }
 ```
 
-Used as context for AI report/diet/chat generation. No auth system in MVP.
+All API routes use `await auth()` to get session and extract `session.user.id` for database queries.
 
 ### Prompt Contracts
 
@@ -181,13 +201,14 @@ AI system prompts are centralized in `lib/ai/promptContracts.ts` with explicit o
 
 ## Important Notes
 
-- **Next.js 16:** This project uses Next.js 16 with breaking changes. Consult `node_modules/next/dist/docs/` for current API conventions. Existing AGENTS.md warns about training data mismatches.
+- **Next.js 16:** This project uses Next.js 16 with breaking changes. Uses App Router exclusively.
 - **TypeScript strict mode enabled** in `tsconfig.json`
 - **Path alias:** `@/*` maps to project root
-- **No authentication:** Single demo-user workflow for MVP speed
-- **MongoDB:** Run `npm run db:seed` after setting up MongoDB. Connection helper caches globally for serverless compatibility.
+- **Authentication:** NextAuth v5 with Google OAuth and demo credentials provider
+- **Database:** Vercel Postgres with pgvector extension. Run `npx prisma db push` after schema changes.
 - **OCR endpoint:** Expects `multipart/form-data` with `file` field (image)
 - **Emergency keywords:** Chat API auto-escalates on "chest pain", "difficulty breathing", etc.
+- **Vector search:** Uses Mistral-Embed (1024 dimensions) with pgvector for semantic prescription search
 
 ## API Response Format
 
@@ -213,8 +234,10 @@ All API routes follow consistent structure:
 When adding features:
 
 1. Define Zod schemas in `lib/types/domain.ts` first
-2. Add fallback objects for graceful degradation
-3. Include medical disclaimers on all health-related responses
-4. Use `generateStructured()` pattern for AI features
-5. Follow existing API response structure
-6. Test with and without `GEMINI_API_KEY` configured
+2. Update Prisma schema if adding new models/fields, then run `npx prisma generate` and `npx prisma db push`
+3. Add fallback objects for graceful degradation in AI features
+4. Include medical disclaimers on all health-related responses
+5. Use `generateStructured()` pattern for AI features
+6. Follow existing API response structure
+7. Protect API routes with `await auth()` and validate `session.user.id`
+8. Test with and without AI API keys configured

@@ -168,7 +168,7 @@ export function SettingsClient({ user }: { user: { name?: string | null; email?:
                   <CheckCircle2 className="h-4 w-4 text-[#2EC4B6]" /> HIPAA Compliant
                 </div>
                 <p className="text-[13px] font-medium leading-relaxed text-slate-600">
-                  Your health data is encrypted at rest and in transit. HealthWise strictly adheres to HIPAA guidelines for data protection and privacy.
+                  Your health data is encrypted at rest and in transit. ImmunoTrace strictly adheres to HIPAA guidelines for data protection and privacy.
                 </p>
               </div>
 
@@ -178,7 +178,7 @@ export function SettingsClient({ user }: { user: { name?: string | null; email?:
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col gap-1">
                     <span className="text-[14px] font-bold text-slate-900">Allow AI Pattern Analysis</span>
-                    <span className="text-[12px] font-medium text-slate-500">Enable HealthWise to process your data for insights.</span>
+                    <span className="text-[12px] font-medium text-slate-500">Enable ImmunoTrace to process your data for insights.</span>
                   </div>
                   <MockToggle defaultOn={true} />
                 </div>

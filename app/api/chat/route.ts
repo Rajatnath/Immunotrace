@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runGeminiChat } from "@/lib/ai/healthwiseAI";
+import { runGeminiChat } from "@/lib/ai/immunoTraceAI";
 import { auth } from "@/lib/auth";
 import {
   containsEmergencySignal,

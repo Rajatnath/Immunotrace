@@ -26,7 +26,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return {
           id: user.userId,
           name: user.userId,
-          email: `${user.userId}@demo.healthwise`,
+          email: `${user.userId}@demo.immunotrace`,
         };
       },
     }),

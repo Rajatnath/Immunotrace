@@ -1,5 +1,5 @@
 version: "2"
-authtoken: 38QxbSQDamY6BGWDiQDVrpieo8F_2Lbr52mNWHhLyU5YZca4K
+authtoken: YOUR_NGROK_AUTH_TOKEN_HERE
 tunnels:
   immunotrace:
     proto: http
