@@ -1,3 +1,5 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
 # dependencies
 /node_modules
 /.pnp
@@ -39,9 +41,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# ngrok (keep example, ignore live config)
+# ngrok (not needed for hackathon)
 ngrok_live.yml
-!ngrok.example.yml
+ngrok.example.yml
+
+# dangerous/dev-only scripts
+wipe.mjs
+db-check.mjs
 
 # prisma
 prisma/migrations/migration_lock.toml
