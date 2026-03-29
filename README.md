@@ -68,9 +68,13 @@ ImmunoTrace is a specialized health intelligence platform designed to store, ret
     ```bash
     npm install
     ```
-3.  **Database Setup**:
+3.  **Database & Prisma Setup**:
     - Ensure your Supabase project has `pgvector` enabled.
-    - `npx prisma db push`
+    - Generate the Prisma client and push the schema:
+    ```bash
+    npx prisma generate
+    npx prisma db push
+    ```
 4.  **Run the application**:
     ```bash
     npm run dev
