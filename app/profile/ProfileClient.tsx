@@ -1,6 +1,7 @@
 "use client";
 
-import { Pencil, ShieldCheck, HeartPulse, User, MapPin, Phone } from "lucide-react";
+import { Pencil, ShieldCheck, HeartPulse, User, MapPin, Phone, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 
 export function ProfileClient({ user }: { user: { name?: string | null; email?: string | null; id?: string } }) {
   const fallBackName = user.name || "Patient Profile";
@@ -40,6 +41,14 @@ export function ProfileClient({ user }: { user: { name?: string | null; email?: 
               <ShieldCheck className="h-3.5 w-3.5" /> Fully Verified
             </div>
           </div>
+
+          {/* Logout Button */}
+          <button 
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-[14px] font-bold text-slate-700 shadow-sm transition-all hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+          >
+            <LogOut className="h-4 w-4" /> Sign Out
+          </button>
 
           {/* Basic Biometrics Card */}
           <div className="flex flex-col rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">

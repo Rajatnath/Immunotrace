@@ -127,7 +127,7 @@ export function RecordsClient({ initialRecords = [] }: { initialRecords: any[] }
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(record, null, 2));
       const downloadAnchorNode = document.createElement("a");
       downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `HealthWise_Record_${record.id}.json`);
+      downloadAnchorNode.setAttribute("download", `ImmunoTrace_Record_${record.id}.json`);
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
@@ -145,7 +145,7 @@ export function RecordsClient({ initialRecords = [] }: { initialRecords: any[] }
       size,
       type: record.source === "ocr" ? "DOCUMENT" : "CLINICAL NOTE",
       date: new Date(record.recordedDate).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' }),
-      providerName: "HealthWise Platform",
+      providerName: "ImmunoTrace Platform",
       providerRole: record.source === "ocr" ? "OCR Engine" : "AI Engine",
     };
   });

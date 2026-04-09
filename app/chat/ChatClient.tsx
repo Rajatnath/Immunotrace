@@ -90,7 +90,7 @@ export function ChatClient() {
             <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-[#0F3D3E]/5 text-[#0F3D3E]">
               <Sparkles className="h-10 w-10" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-[#0F3D3E]">Ask HealthWise</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-[#0F3D3E]">Ask ImmunoTrace</h1>
             <p className="mt-4 max-w-md text-[15px] font-medium leading-relaxed text-slate-500">
               I am your clinical health companion. Ask me anything about your symptoms, history, or wellness patterns.
             </p>
@@ -109,7 +109,7 @@ export function ChatClient() {
                   {msg.role === "user" ? (
                     <>You <User className="h-3 w-3" /></>
                   ) : (
-                    <><Bot className="h-3.5 w-3.5 text-[#0F3D3E]" /> HealthWise AI</>
+                    <><Bot className="h-3.5 w-3.5 text-[#0F3D3E]" /> ImmunoTrace AI</>
                   )}
                 </div>
 
@@ -123,7 +123,7 @@ export function ChatClient() {
                 </div>
 
 
-                {/* HealthWise Intelligence Card (If present) */}
+                {/* ImmunoTrace Intelligence Card (If present) */}
                 {msg.insightCard && (
                   <div className="mt-6 flex w-full flex-col overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-700">
                     <div className="flex flex-col p-8">
@@ -277,7 +277,7 @@ export function ChatClient() {
             disabled={loading || !query.trim()}
             className="flex items-center gap-2 rounded-xl bg-[#0F3D3E] px-6 py-3 font-bold text-white transition-all hover:bg-[#0F3D3E]/90 disabled:opacity-50 disabled:grayscale"
           >
-            {loading ? "Analyzing history..." : "Ask HealthWise"} <ArrowRight className="h-4 w-4" />
+            {loading ? "Analyzing history..." : "Ask ImmunoTrace"} <ArrowRight className="h-4 w-4" />
           </button>
         </form>
         <p className="mt-3 text-center text-[10px] font-medium uppercase tracking-[0.1em] text-slate-400">

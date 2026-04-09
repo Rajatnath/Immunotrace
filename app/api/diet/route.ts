@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runGeminiDietPlan } from "@/lib/ai/healthwiseAI";
+import { runGeminiDietPlan } from "@/lib/ai/immunoTraceAI";
 import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";

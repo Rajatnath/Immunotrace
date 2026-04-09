@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +40,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ngrok (not needed for hackathon)
+ngrok_live.yml
+ngrok.example.yml
+
+# dangerous/dev-only scripts
+wipe.mjs
+db-check.mjs
+
+# prisma
+prisma/migrations/migration_lock.toml
+
+# OS
+Thumbs.db

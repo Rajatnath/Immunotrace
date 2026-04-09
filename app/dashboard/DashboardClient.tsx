@@ -109,7 +109,7 @@ export function DashboardClient({
               <Sparkles className="h-5 w-5" />
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-white">Ask HealthWise</span>
+              <span className="font-bold text-white">Ask ImmunoTrace</span>
               <span className="text-xs font-medium text-white/70">Query your health history</span>
             </div>
           </button>

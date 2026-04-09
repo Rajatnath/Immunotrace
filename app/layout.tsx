@@ -13,7 +13,7 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  title: "HealthWise",
+  title: "ImmunoTrace",
   description: "Personal health memory for recurring illnesses",
 };
 

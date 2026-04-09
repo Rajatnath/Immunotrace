@@ -145,7 +145,7 @@ async function generateMistralStructured<T>(params: {
 ### 🛑 CRITICAL: STRICT OUTPUT RULES (PRO-LEVEL)
 1. You MUST return ONLY a valid, flat JSON object.
 2. Do NOT include any markdown, backticks (\`\`\`), or extra text.
-3. Do NOT wrap in root keys (e.g., NO "HealthWiseResponse").
+3. Do NOT wrap in root keys (e.g., NO "ImmunoTraceResponse").
 4. Root level keys MUST be: ${Object.keys((params.schema as any).shape || {}).join(", ")}.
 5. 'ayushPerspective' MUST be a STRING, not an object.
 6. STICK TO THE SCHEMA. DO NOT RENAME KEYS.
@@ -302,7 +302,7 @@ export async function runGeminiHealthReport(userId: string) {
   };
 
   const generated = await generateMistralStructured({
-    system: "You are HealthWise (Powered by Mistral). Analyze the clinical history and generate a personalized health pattern report.",
+    system: "You are ImmunoTrace (Powered by Mistral). Analyze the clinical history and generate a personalized health pattern report.",
     user: `Prescription history:\n${context}\n\nGenerate a report with summary, frequencyInsights, likelyTriggers, medicineResponse, preventionActions, and ayushPerspective.`,
     schema: healthReportSchema,
     fallback,
@@ -324,7 +324,7 @@ export async function runGeminiDietPlan(userId: string) {
   };
 
   const generated = await generateMistralStructured({
-    system: "You are HealthWise (Powered by Mistral). Create an Indian diet plan with includeFoods, avoidFoods, weeklySuggestions, kadhaRecipe, and seasonalTips.",
+    system: "You are ImmunoTrace (Powered by Mistral). Create an Indian diet plan with includeFoods, avoidFoods, weeklySuggestions, kadhaRecipe, and seasonalTips.",
     user: `Prescription history:\n${context}\n\nGenerate the diet plan structure. No dosage advice.`,
     schema: dietPlanSchema,
     fallback,
@@ -374,7 +374,7 @@ export async function runGeminiChat(input: string, userId: string, history: any[
   const fallback = {
     message: hasHistory 
       ? "I have analyzed your medical records. How can I assist you with your health details today?" 
-      : "Hi, I'm HealthWise. To understand your body better, I'll ask a few questions. First, do you have any chronic conditions or known allergies?",
+      : "Hi, I'm ImmunoTrace. To understand your body better, I'll ask a few questions. First, do you have any chronic conditions or known allergies?",
     followUp: hasHistory
       ? "How have your symptoms been progressing since the last diagnosis?"
       : "Do you have any known allergies or chronic conditions I should be aware of?",
@@ -404,7 +404,7 @@ export async function runGeminiChat(input: string, userId: string, history: any[
     }
   `;
 
-  const systemPrompt = `You are the HealthWise Intelligence System. You are a clinical-grade medical assistant designed to "remember and understand the user's body over time."
+  const systemPrompt = `You are the ImmunoTrace Intelligence System. You are a clinical-grade medical assistant designed to "remember and understand the user's body over time."
 
 ### CORE PROTOCOLS:
 1. **CONTEXT-AWARE MODE (Data Exists)**:
@@ -416,7 +416,7 @@ export async function runGeminiChat(input: string, userId: string, history: any[
 2. **DISCOVERY MODE (No Data/New User)**:
    - If no history exists, your goal is to build a context tree.
    - Ask 1-2 focused, progressive questions.
-   - Greeting: "Hi, I'm HealthWise. To understand your body better, I'll ask a few questions. First, do you have any chronic conditions or known allergies?"
+  - Greeting: "Hi, I'm ImmunoTrace. To understand your body better, I'll ask a few questions. First, do you have any chronic conditions or known allergies?"
    - Do NOT include an 'insightCard' unless user provides specific data in the current turn.
 
 3. **TONE**:
@@ -441,10 +441,10 @@ export async function runGeminiChat(input: string, userId: string, history: any[
     INSTRUCTIONS:
     - If history exists, cross-reference current symptoms with past dates for pattern detection.
     - If new user, ignore pattern detection and focus on discovery.
-    - Strictly match the HealthWiseResponse schema.`,
+    - Strictly match the ImmunoTraceResponse schema.`,
     schema: chatSchema,
     fallback,
-    interfaceName: "HealthWiseResponse",
+    interfaceName: "ImmunoTraceResponse",
   });
 
   return {

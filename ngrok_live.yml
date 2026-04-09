@@ -1,7 +1,0 @@
-version: "2"
-authtoken: 38QxbSQDamY6BGWDiQDVrpieo8F_2Lbr52mNWHhLyU5YZca4K
-tunnels:
-  healthwise:
-    proto: http
-    addr: 127.0.0.1:3000
-    inspect: false

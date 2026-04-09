@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runPixtralOcrFromImage } from "@/lib/ai/healthwiseAI";
+import { runPixtralOcrFromImage } from "@/lib/ai/immunoTraceAI";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // Extend to 60s for Pixtral-12B
