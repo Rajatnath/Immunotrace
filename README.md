@@ -134,3 +134,4 @@ SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key_here"
 
 ### **Medical Disclaimer**
 ImmunoTrace is an informational health tracking tool and **is not a substitute for professional medical diagnosis**. Always consult a certified healthcare provider for medical decisions. In emergencies, contact your local emergency services immediately.
+# Immunotrace
