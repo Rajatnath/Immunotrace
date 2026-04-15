@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FilePlus2, Sparkles, Activity, FileText, LayoutList } from "lucide-react";
+import { Upload, FilePlus2, Sparkles, Activity, FileText, LayoutList, AlertTriangle, X } from "lucide-react";
 import type { PrescriptionEntry } from "@/lib/types/domain";
+import type { DashboardAlert } from "@/app/(main)/dashboard/page";
 
 interface StoredPrescription extends PrescriptionEntry {
   id: string;
@@ -19,16 +20,17 @@ interface UserProfile {
   activityLevel: string;
 }
 
-export function DashboardClient({ 
+export function DashboardClient({
   initialPrescriptions,
   user,
-  initialHistory = [] 
-}: { 
+  alerts = [],
+}: {
   initialPrescriptions: StoredPrescription[];
   user: UserProfile | null;
-  initialHistory?: any[];
+  alerts?: DashboardAlert[];
 }) {
   const router = useRouter();
+  const [dismissedAlerts, setDismissedAlerts] = useState<number[]>([]);
   
   // Advanced analytical derivation for Health Score
   const totalEvents = initialPrescriptions.length;
@@ -62,6 +64,29 @@ export function DashboardClient({
   return (
     <div className="flex w-full flex-col gap-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
       
+      {/* ⚠️ AI ALERT BANNERS */}
+      {alerts.filter((_, i) => !dismissedAlerts.includes(i)).map((alert, i) => (
+        <div
+          key={i}
+          className="flex items-start gap-3 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 shadow-sm animate-in slide-in-from-top-2 duration-500"
+        >
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-orange-500" />
+          <div className="flex flex-1 flex-col gap-0.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-orange-600">
+              ⚠️ AI Alert — {alert.type === "duplicate_medicine" ? "Duplicate Medication Detected" : "Recurring Symptom Detected"}
+            </span>
+            <span className="text-sm font-medium text-orange-900">{alert.message}</span>
+            <span className="mt-1 text-[11px] text-orange-600">Consult your physician before changing medication.</span>
+          </div>
+          <button
+            onClick={() => setDismissedAlerts(prev => [...prev, i])}
+            className="shrink-0 rounded-lg p-1 text-orange-400 hover:bg-orange-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+
       {/* HEADER SECTION */}
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Health Intelligence</h1>

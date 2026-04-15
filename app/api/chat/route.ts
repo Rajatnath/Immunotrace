@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runGeminiChat } from "@/lib/ai/immunoTraceAI";
+import { runMistralChat } from "@/lib/ai/immunoTraceAI";
 import { auth } from "@/lib/auth";
 import {
   containsEmergencySignal,
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const generated = await runGeminiChat(message, session.user.id, history);
+  const generated = await runMistralChat(message, session.user.id, history);
 
   return NextResponse.json({
     success: true,
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       followUp: generated.followUp,
       ayushPerspective: generated.ayushPerspective,
       disclaimer: generated.disclaimer || getSafetyDisclaimer(),
+      sources: generated.sources ?? [],
     },
   });
 }

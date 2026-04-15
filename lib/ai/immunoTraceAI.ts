@@ -7,38 +7,53 @@ import { dietPlanSchema, healthReportSchema } from "@/lib/types/domain";
 // Track RAG availability with auto-recovery (retry after cooldown instead of permanent disable)
 let ragDisabledUntil: number = 0;
 
-async function buildRAGContext(input: string, userId: string) {
-  // Check if RAG is in cooldown (auto-recovers after 60 seconds)
+interface RAGSource {
+  label: string; // e.g. "Viral Fever — Jan 2026"
+  prescriptionId: string;
+}
+
+interface RAGResult {
+  context: string;
+  sources: RAGSource[];
+}
+
+async function buildRAGContext(input: string, userId: string): Promise<RAGResult> {
   if (Date.now() < ragDisabledUntil) {
-    return buildHistoryContext(userId);
+    const context = await buildHistoryContext(userId);
+    return { context, sources: [] };
   }
 
   try {
     const history = await listPrescriptions(userId);
-    if (history.length === 0) return "No prescription history available.";
+    if (history.length === 0) return { context: "No prescription history available.", sources: [] };
 
     const vector = await generateContentEmbedding(input);
-    
-    // If embedding generation failed (returned null), fall back to plain history
     if (!vector) {
-      return buildHistoryContext(userId);
+      const context = await buildHistoryContext(userId);
+      return { context, sources: [] };
     }
 
     const matches = await findSimilarPrescriptions(vector, userId, 3);
     if (matches && matches.length > 0) {
-      return matches.map((m: any, i: number) => `[Relevant Semantic Record ${i+1}] ${m.content}`).join("\n\n");
+      const sources: RAGSource[] = matches.map((m: any) => ({
+        label: `${m.illnessName} — ${new Date(m.recordedDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`,
+        prescriptionId: m.prescriptionId,
+      }));
+      const context = matches
+        .map((m: any, i: number) => `[Relevant Semantic Record ${i + 1}] ${m.content}`)
+        .join("\n\n");
+      return { context, sources };
     }
   } catch (err: any) {
     console.error("RAG context retrieval failed:", err?.message);
-    
-    // If it's a 404 (model not found), pause RAG for 60s to prevent repeated latency hits
     if (err?.message?.includes("404") || err?.message?.includes("not found")) {
       console.warn("Pausing RAG for 60s due to model 404 — will auto-retry.");
       ragDisabledUntil = Date.now() + 60_000;
     }
   }
-  
-  return buildHistoryContext(userId);
+
+  const context = await buildHistoryContext(userId);
+  return { context, sources: [] };
 }
 
 const ocrSchema = z.object({
@@ -316,7 +331,7 @@ export async function runPixtralOcrFromImage(file: { mimeType: string; base64: s
   }
 }
 
-export async function runGeminiHealthReport(userId: string) {
+export async function runMistralHealthReport(userId: string) {
   const context = await buildHistoryContext(userId);
   const fallback = {
     generatedAt: new Date().toISOString(),
@@ -339,7 +354,7 @@ export async function runGeminiHealthReport(userId: string) {
   return { ...generated, generatedAt: new Date().toISOString(), disclaimer: getSafetyDisclaimer() };
 }
 
-export async function runGeminiDietPlan(userId: string) {
+export async function runMistralDietPlan(userId: string) {
   const context = await buildHistoryContext(userId);
   const fallback = {
     generatedAt: new Date().toISOString(),
@@ -361,8 +376,8 @@ export async function runGeminiDietPlan(userId: string) {
   return { ...generated, generatedAt: new Date().toISOString(), disclaimer: getSafetyDisclaimer() };
 }
 
-export async function runGeminiChat(input: string, userId: string, history: any[] = []) {
-  const context = await buildRAGContext(input, userId);
+export async function runMistralChat(input: string, userId: string, history: any[] = []) {
+  const { context, sources } = await buildRAGContext(input, userId);
   const hasHistory = context && context !== "No prescription history available.";
 
   const fallback = {
@@ -451,5 +466,6 @@ export async function runGeminiChat(input: string, userId: string, history: any[
       nextSteps: generated.insightCard.nextSteps.map(s => sanitizeMedicalResponse(s)),
     } : undefined,
     disclaimer: getSafetyDisclaimer(),
+    sources,
   };
 }

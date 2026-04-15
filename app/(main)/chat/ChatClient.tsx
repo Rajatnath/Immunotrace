@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, Search, ArrowRight, Activity, Layers, CheckCircle2, User, Bot, Loader2 } from "lucide-react";
+import { Sparkles, Search, ArrowRight, Activity, Layers, CheckCircle2, User, Bot, Loader2, FileText } from "lucide-react";
+
+interface Source {
+  label: string;
+  prescriptionId: string;
+}
 
 interface Message {
   role: "user" | "assistant";
@@ -18,13 +23,22 @@ interface Message {
   followUp?: string;
   ayushPerspective?: string;
   disclaimer?: string;
+  sources?: Source[];
 }
+
+const THINKING_PHASES = [
+  "Scanning past records...",
+  "Detecting patterns...",
+  "Generating clinical insight...",
+];
 
 export function ChatClient() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [thinkingPhase, setThinkingPhase] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const thinkingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -44,6 +58,10 @@ export function ChatClient() {
     const newMessages: Message[] = [...messages, { role: "user", content: userMessage }];
     setMessages(newMessages);
     setLoading(true);
+    setThinkingPhase(0);
+    thinkingTimer.current = setInterval(() => {
+      setThinkingPhase(p => (p + 1) % THINKING_PHASES.length);
+    }, 1200);
 
     try {
       const res = await fetch("/api/chat", {
@@ -63,16 +81,18 @@ export function ChatClient() {
           insightCard: data.data.insightCard,
           followUp: data.data.followUp,
           ayushPerspective: data.data.ayushPerspective,
-          disclaimer: data.data.disclaimer
+          disclaimer: data.data.disclaimer,
+          sources: data.data.sources ?? [],
         }]);
       }
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { 
-        role: "assistant", 
-        content: "I encountered a connection error. Please try again." 
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "I encountered a connection error. Please try again.",
       }]);
     } finally {
+      if (thinkingTimer.current) clearInterval(thinkingTimer.current);
       setLoading(false);
     }
   };
@@ -122,6 +142,18 @@ export function ChatClient() {
                   {msg.content}
                 </div>
 
+
+                {/* Source Citations */}
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="flex flex-wrap gap-2 px-1 mt-1 animate-in fade-in duration-500">
+                    {msg.sources.map((src, i) => (
+                      <span key={i} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-500">
+                        <FileText className="h-3 w-3 text-[#2EC4B6]" />
+                        Source: {src.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* ImmunoTrace Intelligence Card (If present) */}
                 {msg.insightCard && (
@@ -245,13 +277,19 @@ export function ChatClient() {
           ))}
 
           {loading && (
-            <div className="flex w-full items-start gap-3 px-1 animate-pulse">
+            <div className="flex w-full items-start gap-3 px-1">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100">
                 <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
               </div>
-              <div className="mt-1 flex flex-col gap-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Thinking...</span>
-                <div className="h-4 w-32 rounded-lg bg-slate-100" />
+              <div className="mt-1 flex flex-col gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#0F3D3E] transition-all duration-300">
+                  {THINKING_PHASES[thinkingPhase]}
+                </span>
+                <div className="flex gap-1">
+                  <div className="h-2 w-2 rounded-full bg-slate-200 animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <div className="h-2 w-2 rounded-full bg-slate-200 animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <div className="h-2 w-2 rounded-full bg-slate-200 animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
               </div>
             </div>
           )}

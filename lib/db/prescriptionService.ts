@@ -2,6 +2,19 @@ import prisma from "@/lib/db/prisma";
 import type { PrescriptionEntry } from "@/lib/types/domain";
 import { buildPrescriptionSemanticText, generateContentEmbedding } from "@/lib/ai/embeddings";
 
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const isConnErr = err?.message?.includes("Can't reach database") || err?.code === "P1001";
+      if (!isConnErr || i === attempts - 1) throw err;
+      await new Promise(r => setTimeout(r, 800 * (i + 1)));
+    }
+  }
+  throw new Error("unreachable");
+}
+
 export type StoredPrescription = PrescriptionEntry & { id: string };
 
 /**
@@ -10,14 +23,14 @@ export type StoredPrescription = PrescriptionEntry & { id: string };
  */
 export async function listPrescriptions(userId: string): Promise<StoredPrescription[]> {
   try {
-    const docs = await prisma.prescription.findMany({
+    const docs = await withRetry(() => prisma.prescription.findMany({
       where: { userId },
       orderBy: { recordedDate: "desc" },
       include: {
         symptoms: true,
         medicines: true,
       },
-    });
+    }));
 
     return docs.map((doc: any) => ({
       id: doc.id,
@@ -212,14 +225,25 @@ export async function deletePrescription(id: string): Promise<boolean> {
 
 /**
  * Retrieve the most semantically relevant prescriptions using pgvector Cosine Distance.
+ * Returns illness name and date so the caller can show source citations in the UI.
  */
 export async function findSimilarPrescriptions(queryVector: number[], userId: string, topK: number = 3) {
   try {
     const vectorStr = `[${queryVector.join(",")}]`;
 
-    // <=> is the Cosine Distance operator in pgvector
-    const matches = await prisma.$queryRaw<Array<{ prescriptionId: string, content: string, similarity: number }>>`
-      SELECT e."prescriptionId", e."content", 1 - (e.embedding <=> ${vectorStr}::vector) as similarity
+    const matches = await prisma.$queryRaw<Array<{
+      prescriptionId: string;
+      content: string;
+      similarity: number;
+      illnessName: string;
+      recordedDate: Date;
+    }>>`
+      SELECT
+        e."prescriptionId",
+        e."content",
+        1 - (e.embedding <=> ${vectorStr}::vector) AS similarity,
+        p."illnessName",
+        p."recordedDate"
       FROM "PrescriptionEmbedding" e
       JOIN "Prescription" p ON e."prescriptionId" = p.id
       WHERE p."userId" = ${userId}

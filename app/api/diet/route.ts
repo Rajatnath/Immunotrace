@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runGeminiDietPlan } from "@/lib/ai/immunoTraceAI";
+import { runMistralDietPlan } from "@/lib/ai/immunoTraceAI";
 import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -10,7 +10,7 @@ export async function POST() {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const plan = await runGeminiDietPlan(session.user.id);
+  const plan = await runMistralDietPlan(session.user.id);
 
   return NextResponse.json({
     success: true,
