@@ -17,11 +17,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const userId = credentials.userId as string;
         
-        // MOCKED FOR DEMO: Bypasses Prisma database timeout entirely!
+        const user = await prisma.user.findUnique({ where: { userId } });
+
+        if (!user) {
+          return null;
+        }
+
         return {
-          id: userId,
-          name: userId,
-          email: `${userId}@demo.immunotrace`,
+          id: user.userId,
+          name: user.userId,
+          email: `${user.userId}@demo.immunotrace`,
         };
       },
     }),
@@ -32,7 +37,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async signIn({ user, account }) {
-      // MOCKED FOR DEMO
+      if (account?.provider === "google" && user.email) {
+        const userId = user.email;
+        // Check if user already exists in our custom DB table
+        const existingUser = await prisma.user.findUnique({ where: { userId } });
+        
+        if (!existingUser) {
+          // Auto-provision a default profile for the Google user so the dashboard doesn't crash
+          await prisma.user.create({
+            data: {
+              userId,
+              age: 30, // Default baseline
+              city: "Global",
+              allergies: [],
+              sleepHours: 7.5,
+              dietType: "omnivorous",
+              activityLevel: "moderate"
+            }
+          });
+        }
+      }
       return true;
     },
     async jwt({ token, user, account }) {
