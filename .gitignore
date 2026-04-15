@@ -45,12 +45,10 @@ next-env.d.ts
 ngrok_live.yml
 ngrok.example.yml
 
-# dangerous/dev-only scripts
-wipe.mjs
-db-check.mjs
-
 # prisma
 prisma/migrations/migration_lock.toml
 
 # OS
 Thumbs.db
+._*
+.DS_Store

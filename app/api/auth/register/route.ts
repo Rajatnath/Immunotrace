@@ -4,8 +4,6 @@ import { userProfileSchema } from "@/lib/types/domain";
 
 export const runtime = "nodejs";
 
-const mockUsers: Map<string, any> = new Map();
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();

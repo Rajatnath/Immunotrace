@@ -109,13 +109,18 @@ export async function addPrescription(entry: PrescriptionEntry, userId: string):
       const semanticText = buildPrescriptionSemanticText(entry, doc.recordedDate.toISOString());
       const vector = await generateContentEmbedding(semanticText);
       
-      const vectorStr = `[${vector.join(",")}]`;
+      // Only save if we got a valid (non-null) vector back
+      if (vector) {
+        const vectorStr = `[${vector.join(",")}]`;
 
-      await prisma.$executeRaw`
-        INSERT INTO "PrescriptionEmbedding" ("id", "prescriptionId", "content", "embedding")
-        VALUES (gen_random_uuid(), ${doc.id}, ${semanticText}, ${vectorStr}::vector)
-      `;
-      console.log(`Successfully generated and saved embedding for prescription: ${doc.id}`);
+        await prisma.$executeRaw`
+          INSERT INTO "PrescriptionEmbedding" ("id", "prescriptionId", "content", "embedding")
+          VALUES (gen_random_uuid(), ${doc.id}, ${semanticText}, ${vectorStr}::vector)
+        `;
+        console.log(`✅ Embedding saved for prescription: ${doc.id}`);
+      } else {
+        console.warn(`⚠️ Embedding generation failed for prescription ${doc.id} — RAG entry skipped.`);
+      }
     } catch (embedError) {
       console.error("Non-fatal: Failed to generate/save embedding for prescription:", embedError);
     }

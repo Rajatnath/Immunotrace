@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { addPrescription, listPrescriptions, deletePrescription } from "@/lib/db/prescriptionService";
 import { prescriptionEntrySchema } from "@/lib/types/domain";
-import { getMongoErrorMessage } from "@/lib/db/errorHandling";
+import { getDbErrorMessage } from "@/lib/db/errorHandling";
 import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -25,7 +25,7 @@ export async function GET() {
         success: false,
         error: {
           code: "SERVER_ERROR",
-          message: getMongoErrorMessage(error),
+          message: getDbErrorMessage(error),
         },
       },
       { status: 500 }
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         success: false,
         error: {
           code: "SERVER_ERROR",
-          message: getMongoErrorMessage(error),
+          message: getDbErrorMessage(error),
         },
       },
       { status: 500 }

@@ -1,4 +1,3 @@
-import { getGeminiClient } from "@/lib/ai/geminiClient";
 import type { PrescriptionEntry } from "@/lib/types/domain";
 
 /**
@@ -24,13 +23,24 @@ Additional physician notes: ${entry.notes || "None"}.
 }
 
 /**
- * Generate a 768-dimensional float embedding vector for the provided text.
- * Uses the stable embedding-001 model for maximum compatibility.
+ * Check if a vector is a zero/failure vector (all zeros = embedding generation failed).
  */
-export async function generateContentEmbedding(text: string): Promise<number[]> {
+export function isZeroVector(vector: number[]): boolean {
+  return vector.length > 0 && vector.every(v => v === 0);
+}
+
+/**
+ * Generate a 1024-dimensional float embedding vector for the provided text.
+ * Uses the Mistral Embed model for semantic vector representations.
+ * 
+ * Returns null if embedding generation fails (instead of a zero vector that 
+ * would pollute the vector store and corrupt cosine similarity searches).
+ */
+export async function generateContentEmbedding(text: string): Promise<number[] | null> {
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
-    throw new Error("Missing MISTRAL_API_KEY for Mistral Embeddings.");
+    console.error("Missing MISTRAL_API_KEY — embedding generation skipped.");
+    return null;
   }
 
   try {
@@ -41,29 +51,34 @@ export async function generateContentEmbedding(text: string): Promise<number[]> 
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "mistral-embed-2312",
+        model: "mistral-embed",
         input: [text],
       })
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Mistral Embedding failure:", response.status, errText);
-      throw new Error(`Mistral API error: ${response.status}`);
+      console.error(`Mistral Embedding API error [${response.status}]:`, errText);
+      return null;
     }
 
     const data = await response.json();
     const vector = data.data?.[0]?.embedding;
     
-    // mistral-embed usually provides 1024 dimensions
-    if (!vector || vector.length < 512) {
-      throw new Error("Invalid or missing embedding shape returned from Mistral");
+    if (!Array.isArray(vector) || vector.length < 512) {
+      console.error("Invalid embedding shape returned from Mistral:", vector?.length);
+      return null;
+    }
+
+    // Sanity check: if Mistral returns all zeros (shouldn't happen but guard against it)
+    if (isZeroVector(vector)) {
+      console.warn("Mistral returned a zero vector — discarding.");
+      return null;
     }
     
     return vector;
   } catch (error: any) {
-    console.error("Error generating Mistral embedding:", error);
-    // Return zero vector fallback to prevent crashing the UI
-    return new Array(1024).fill(0);
+    console.error("Embedding generation failed:", error?.message || error);
+    return null;
   }
 }

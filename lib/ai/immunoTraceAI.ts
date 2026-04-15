@@ -1,17 +1,45 @@
 import { z } from "zod";
-import { getGeminiClient } from "@/lib/ai/geminiClient";
-import {
-  chatPromptContract,
-  dietPromptContract,
-  healthReportPromptContract,
-} from "@/lib/ai/promptContracts";
 import { listPrescriptions, findSimilarPrescriptions } from "@/lib/db/prescriptionService";
 import { generateContentEmbedding } from "@/lib/ai/embeddings";
 import { getSafetyDisclaimer, sanitizeMedicalResponse } from "@/lib/safety/medicalGuardrails";
 import { dietPlanSchema, healthReportSchema } from "@/lib/types/domain";
 
-// Global session flag to avoid repetitive 404 latency if embeddings are unavailable
-let ragEnabled = true;
+// Track RAG availability with auto-recovery (retry after cooldown instead of permanent disable)
+let ragDisabledUntil: number = 0;
+
+async function buildRAGContext(input: string, userId: string) {
+  // Check if RAG is in cooldown (auto-recovers after 60 seconds)
+  if (Date.now() < ragDisabledUntil) {
+    return buildHistoryContext(userId);
+  }
+
+  try {
+    const history = await listPrescriptions(userId);
+    if (history.length === 0) return "No prescription history available.";
+
+    const vector = await generateContentEmbedding(input);
+    
+    // If embedding generation failed (returned null), fall back to plain history
+    if (!vector) {
+      return buildHistoryContext(userId);
+    }
+
+    const matches = await findSimilarPrescriptions(vector, userId, 3);
+    if (matches && matches.length > 0) {
+      return matches.map((m: any, i: number) => `[Relevant Semantic Record ${i+1}] ${m.content}`).join("\n\n");
+    }
+  } catch (err: any) {
+    console.error("RAG context retrieval failed:", err?.message);
+    
+    // If it's a 404 (model not found), pause RAG for 60s to prevent repeated latency hits
+    if (err?.message?.includes("404") || err?.message?.includes("not found")) {
+      console.warn("Pausing RAG for 60s due to model 404 — will auto-retry.");
+      ragDisabledUntil = Date.now() + 60_000;
+    }
+  }
+  
+  return buildHistoryContext(userId);
+}
 
 const ocrSchema = z.object({
   illnessName: z.string(),
@@ -331,40 +359,6 @@ export async function runGeminiDietPlan(userId: string) {
   });
 
   return { ...generated, generatedAt: new Date().toISOString(), disclaimer: getSafetyDisclaimer() };
-}
-
-async function buildRAGContext(input: string, userId: string) {
-  if (!ragEnabled) {
-    return buildHistoryContext(userId);
-  }
-
-  try {
-    const history = await listPrescriptions(userId);
-    if (history.length === 0) return "No prescription history available.";
-
-    const vector = await generateContentEmbedding(input);
-    
-    // If we got a zero-vector or failure-vector (all zeros), it's a soft-fail from embeddings.ts
-    // We don't disable RAG here because it might be a temporary 429.
-    if (!vector || (vector.length > 0 && vector.every(v => v === 0))) {
-      return buildHistoryContext(userId);
-    }
-
-    const matches = await findSimilarPrescriptions(vector, userId, 3);
-    if (matches && matches.length > 0) {
-      return matches.map((m: any, i: number) => `[Relevant Semantic Record ${i+1}] ${m.content}`).join("\n\n");
-    }
-  } catch (err: any) {
-    console.error("RAG context retrieval failed during embedding/search phase.");
-    
-    // If it's a 404 (model missing), disable RAG for the session to prevent 7s latencies
-    if (err?.message?.includes("404") || err?.message?.includes("not found")) {
-      console.warn("Disabling Semantic RAG for this session due to model 404.");
-      ragEnabled = false;
-    }
-  }
-  
-  return buildHistoryContext(userId);
 }
 
 export async function runGeminiChat(input: string, userId: string, history: any[] = []) {
